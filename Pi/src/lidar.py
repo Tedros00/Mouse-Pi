@@ -1,187 +1,224 @@
-#!/usr/bin/env python3
 """
-LIDAR Scan Utility - Simple parametric function
-Captures LIDAR scans with customizable parameters
+RPlidar interface module for capturing and processing LIDAR data.
 """
+
 from rplidar import RPLidar
 import numpy as np
-from typing import List, Tuple
+import socket
+import json
+import time
 
-def get_lidar_scan(port: str = '/dev/ttyUSB1',
-                   min_distance: int = 0,
-                   max_distance: int = 5000,
-                   fov_start: float = 0,
-                   fov_end: float = 360,
-                   point_density: float = 1.0,
-                   num_scans: int = 1) -> List[List[Tuple[float, float, int]]]:
+
+def connect_lidar(port: str = '/dev/ttyUSB1', baudrate: int = 115200) -> RPLidar:
     """
-    Capture LIDAR scans with custom parameters
+    Connect to the RPlidar device.
     
-    Parameters:
-    port : str
-        Serial port for LIDAR (default: /dev/ttyUSB1)
-    min_distance : int
-        Minimum distance threshold in mm (default: 0)
-    max_distance : int
-        Maximum distance threshold in mm (default: 5000)
-    fov_start : float
-        Start angle of field of view in degrees (default: 0)
-    fov_end : float
-        End angle of field of view in degrees (default: 360)
-    point_density : float
-        Point density (0.0-1.0). 1.0 = all points, 0.5 = every other point (default: 1.0)
-    num_scans : int
-        Number of complete scans to capture (default: 1)
+    Args:
+        port (str): Serial port path (default: /dev/ttyUSB1)
+        baudrate (int): Serial communication baudrate (default: 115200)
     
     Returns:
-    List of scans, each scan is a list of (angle, distance, quality) tuples
+        RPLidar: Connected RPlidar object
+    
+    Raises:
+        Exception: If connection fails
     """
-    
-    # Input validation
-    if not (0 <= point_density <= 1.0):
-        raise ValueError("point_density must be between 0.0 and 1.0")
-    
-    if not (0 <= fov_start < 360 and 0 <= fov_end <= 360):
-        raise ValueError("FOV angles must be between 0 and 360 degrees")
-    
-    # Convert point density to skip rate
-    skip_rate = int(1.0 / point_density) if point_density > 0 else 1
-    
-    all_scans = []
-    lidar = RPLidar(port)
-    
     try:
-        print(f"Connecting to LIDAR on {port}...")
-        lidar.connect()
-        print("Connected")
-        
-        scan_count = 0
-        iterator = lidar.iter_scans()
-        
-        for scan in iterator:
-            filtered_scan = []
-            
-            # Process each measurement in the scan
-            for i, (quality, angle, distance) in enumerate(scan):
-                # Apply point density filter (skip points based on density)
-                if i % skip_rate != 0:
-                    continue
-                
-                # Apply distance filter
-                if not (min_distance <= distance <= max_distance):
-                    continue
-                
-                # Apply FOV filter
-                if fov_start <= fov_end:
-                    # Normal case: FOV doesn't wrap around
-                    if not (fov_start <= angle <= fov_end):
-                        continue
-                else:
-                    # Wraparound case: e.g., 350-10 degrees
-                    if not (angle >= fov_start or angle <= fov_end):
-                        continue
-                
-                # Add filtered point (angle, distance, quality)
-                filtered_scan.append((angle, distance, quality))
-            
-            if filtered_scan:
-                all_scans.append(filtered_scan)
-                scan_count += 1
-                print(f"Scan {scan_count}: {len(filtered_scan)} points")
-                
-                if scan_count >= num_scans:
-                    break
-    
-    except KeyboardInterrupt:
-        print(f"Stopped by user. Captured {scan_count} scans.")
+        lidar = RPLidar(port, baudrate)
+        print(f"Successfully connected to RPlidar on {port}")
+        return lidar
     except Exception as e:
-        print(f"Error during scan: {e}")
-    finally:
-        lidar.stop()
-        lidar.disconnect()
-        print("LIDAR disconnected")
-    
-    return all_scans
+        print(f"Failed to connect to RPlidar: {e}")
+        raise
 
 
-def get_lidar_scan_numpy(port: str = '/dev/ttyUSB1',
-                         min_distance: int = 0,
-                         max_distance: int = 5000,
-                         fov_start: float = 0,
-                         fov_end: float = 360,
-                         point_density: float = 1.0,
-                         num_scans: int = 1) -> List[np.ndarray]:
+def init_lidar(lidar: RPLidar) -> None:
     """
-    Capture LIDAR scans and return as numpy arrays
+    Initialize the RPlidar device.
     
-    Returns:
-    List of numpy arrays with shape (N, 3) containing (angle, distance, quality)
+    Performs startup sequence including getting device info and starting scanning.
+    
+    Args:
+        lidar (RPLidar): Connected RPlidar object
+    
+    Raises:
+        Exception: If initialization fails
     """
-    scans = get_lidar_scan(port, min_distance, max_distance, fov_start, fov_end, 
-                           point_density, num_scans)
-    
-    return [np.array(scan) for scan in scans]
-
-
-def get_lidar_scan_cartesian(port: str = '/dev/ttyUSB1',
-                              min_distance: int = 0,
-                              max_distance: int = 5000,
-                              fov_start: float = 0,
-                              fov_end: float = 360,
-                              point_density: float = 1.0,
-                              num_scans: int = 1) -> List[np.ndarray]:
-    """
-    Capture LIDAR scans and convert to Cartesian coordinates (x, y, quality)
-    
-    Returns:
-    List of numpy arrays with shape (N, 3) containing (x, y, quality)
-    """
-    scans = get_lidar_scan(port, min_distance, max_distance, fov_start, fov_end, 
-                           point_density, num_scans)
-    
-    cartesian_scans = []
-    for scan in scans:
-        points = []
-        for angle, distance, quality in scan:
-            # Convert polar to Cartesian
-            rad = np.radians(angle)
-            x = distance * np.cos(rad)
-            y = distance * np.sin(rad)
-            points.append([x, y, quality])
+    try:
+        # Get device info
+        info = lidar.get_info()
+        print(f"LIDAR Info: {info}")
         
-        cartesian_scans.append(np.array(points))
-    
-    return cartesian_scans
+        # Get device health
+        health = lidar.get_health()
+        print(f"LIDAR Health: {health}")
+        
+        # Start motor
+        lidar.start_motor()
+        print("LIDAR motor started")
+        
+        print("LIDAR initialization complete")
+    except Exception as e:
+        print(f"Failed to initialize LIDAR: {e}")
+        raise
 
 
-# Example usage
-if __name__ == '__main__':
-    # Example 1: Simple scan with distance filter
-    print("=== Example 1: Distance filtered scan ===")
-    scans = get_lidar_scan(
-        min_distance=100,
-        max_distance=3000,
-        num_scans=1
-    )
-    print(f"Captured {len(scans)} scan(s)\n")
+def capture_map(lidar: RPLidar, max_distance: float = 5000, max_points: int = None) -> np.ndarray:
+    """
+    Capture a complete scan/map from the RPlidar.
     
-    # Example 2: Front-facing FOV (120 degrees)
-    print("=== Example 2: Front-facing FOV ===")
-    scans = get_lidar_scan(
-        min_distance=200,
-        max_distance=4000,
-        fov_start=300,
-        fov_end=60,
-        num_scans=1
-    )
-    print(f"Captured {len(scans)} scan(s)\n")
+    Collects scan data until a full rotation is completed or max_points is reached.
     
-    # Example 3: Low density scan
-    print("=== Example 3: Low density scan (25% points) ===")
-    scans = get_lidar_scan(
-        min_distance=150,
-        max_distance=2500,
-        point_density=0.25,
-        num_scans=1
-    )
-    print(f"Captured {len(scans)} scan(s)\n")
+    Args:
+        lidar (RPLidar): Connected and initialized RPlidar object
+        max_distance (float): Maximum distance in mm to include in scan (default: 5000)
+        max_points (int): Maximum number of points to collect. If None, captures one full rotation
+    
+    Returns:
+        np.ndarray: Nx3 array where each row is [angle, distance, quality]
+                    - angle: in degrees (0-360)
+                    - distance: in mm
+                    - quality: signal quality (0-255)
+    """
+    try:
+        print("Starting LIDAR scan...")
+        scan_data = []
+        
+        for scan in lidar.iter_scans(max_buf_meas=3000, min_len=5):
+            for (quality, angle, distance) in scan:
+                # Filter by max distance
+                if distance <= max_distance:
+                    scan_data.append([angle, distance, quality])
+            
+            # Check if we've reached max points
+            if max_points and len(scan_data) >= max_points:
+                scan_data = scan_data[:max_points]
+                break
+        
+        print(f"Scan complete. Captured {len(scan_data)} points")
+        return np.array(scan_data)
+    
+    except Exception as e:
+        print(f"Failed to capture map: {e}")
+        raise
+
+
+def disconnect_lidar(lidar: RPLidar) -> None:
+    """
+    Safely disconnect from the RPlidar device.
+    
+    Args:
+        lidar (RPLidar): Connected RPLidar object
+    """
+    try:
+        lidar.stop()
+        lidar.stop_motor()
+        lidar.disconnect()
+        print("LIDAR disconnected safely")
+    except Exception as e:
+        print(f"Error during disconnection: {e}")
+
+
+def send_map_to_pc(scan_data: np.ndarray, pc_ip: str, pc_port: int = 5006) -> None:
+    """
+    Send LIDAR scan data to PC via socket connection.
+    
+    Converts scan data to JSON format and sends to PC for visualization.
+    
+    Args:
+        scan_data (np.ndarray): Scan data array with shape (N, 3) containing [angle, distance, quality]
+        pc_ip (str): IP address of the PC
+        pc_port (int): Port number on PC (default: 5006)
+    
+    Raises:
+        Exception: If connection or transmission fails
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print(f"Connecting to PC at {pc_ip}:{pc_port}...")
+        sock.connect((pc_ip, pc_port))
+        print("Connected to PC!")
+        
+        # Convert numpy array to list for JSON serialization
+        points = scan_data.tolist()
+        
+        # Prepare data in JSON format
+        data = {
+            'timestamp': time.time(),
+            'num_points': len(points),
+            'points': points  # Each point: [angle, distance, quality]
+        }
+        
+        # Send data
+        message = json.dumps(data) + '\n'
+        sock.sendall(message.encode('utf-8'))
+        print(f"Sent {len(points)} scan points to PC")
+        
+        sock.close()
+    except Exception as e:
+        print(f"Failed to send map to PC: {e}")
+        raise
+
+
+def stream_map_to_pc(lidar: RPLidar, pc_ip: str, pc_port: int = 5006, 
+                     max_distance: float = 5000, max_points: int = None) -> None:
+    """
+    Continuously capture and stream LIDAR maps to PC for real-time visualization.
+    
+    Args:
+        lidar (RPLidar): Connected and initialized RPLidar object
+        pc_ip (str): IP address of the PC
+        pc_port (int): Port number on PC (default: 5006)
+        max_distance (float): Maximum distance in mm to include in scan (default: 5000)
+        max_points (int): Maximum number of points per scan
+    
+    Raises:
+        Exception: If connection fails
+    """
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print(f"Connecting to PC at {pc_ip}:{pc_port}...")
+        sock.connect((pc_ip, pc_port))
+        print("Connected to PC! Starting stream...")
+        
+        frame_count = 0
+        
+        try:
+            for scan in lidar.iter_scans(max_buf_meas=3000, min_len=5):
+                scan_data = []
+                
+                for (quality, angle, distance) in scan:
+                    if distance <= max_distance:
+                        scan_data.append([angle, distance, quality])
+                
+                if max_points and len(scan_data) > max_points:
+                    scan_data = scan_data[:max_points]
+                
+                # Send scan to PC
+                data = {
+                    'timestamp': time.time(),
+                    'frame': frame_count,
+                    'num_points': len(scan_data),
+                    'points': scan_data
+                }
+                
+                try:
+                    message = json.dumps(data) + '\n'
+                    sock.sendall(message.encode('utf-8'))
+                    frame_count += 1
+                    
+                    if frame_count % 5 == 0:
+                        print(f"Streamed {frame_count} frames - {len(scan_data)} points in latest scan")
+                except Exception as e:
+                    print(f"Connection lost: {e}")
+                    break
+        
+        except KeyboardInterrupt:
+            print("\nStopped by user")
+        finally:
+            sock.close()
+            print(f"Stream ended. Total frames sent: {frame_count}")
+    
+    except Exception as e:
+        print(f"Failed to establish connection to PC: {e}")
+        raise

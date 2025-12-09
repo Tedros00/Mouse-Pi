@@ -36,7 +36,7 @@ def initialize_serial(port='/dev/ttyUSB0', baudrate=115200, timeout=1):
     time.sleep(3)  # Wait for the connection to establish
     return ser
 
-def prime_encoders(ser, max_attempts=20, verbose=True):
+def init_encoders(ser, max_attempts=20, verbose=True):
     """Prime the encoder readings to ensure valid data is available.
     
     Call this after initialize_serial() and before the main control loop.

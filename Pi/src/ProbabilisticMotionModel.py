@@ -131,7 +131,7 @@ def command_correction(
     
     # For angular velocity, only fuse if feedback is reasonably large
     # This prevents the fusion from dampening small commanded rotations
-    if abs(w_c) < cmd_threshold or abs(w_m) < cmd_threshold * 1000:
+    if abs(w_c) < cmd_threshold or abs(w_m) < cmd_threshold * 2:
         w_fused = w_c
     else:
         w_fused = (1 - lam_w) * w_c + lam_w * w_m
