@@ -49,30 +49,3 @@ def likelyhood_field_model(Xt,
             prob *= p
 
     return prob
-
-def learn_intrinsic_params(sensor_data, true_positions, initial_params, sensor_model, learning_rate=0.01, num_iterations=100):
-
-    params = initial_params.copy()
-
-    for _ in range(num_iterations):
-        gradients = {key: 0.0 for key in params.keys()}
-
-        for z, pos in zip(sensor_data, true_positions):
-            z_expected = sensor_model(pos, params)
-            error = z - z_expected
-
-            for key in params.keys():
-                # Numerical gradient approximation
-                delta = 1e-5
-                params_plus = params.copy()
-                params_plus[key] += delta
-                z_expected_plus = sensor_model(pos, params_plus)
-                error_plus = z - z_expected_plus
-
-                gradients[key] += (error_plus - error) / delta
-
-        # Update parameters
-        for key in params.keys():
-            params[key] -= learning_rate * gradients[key] / len(sensor_data)
-    return params
-

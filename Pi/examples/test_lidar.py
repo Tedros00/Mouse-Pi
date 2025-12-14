@@ -8,7 +8,6 @@ sys.path.insert(0, '/home/mouse/AMR/src')
 from lidar import connect_lidar, init_lidar, capture_map, disconnect_lidar
 import numpy as np
 
-
 def test_connect():
     """Test LIDAR connection."""
     print("=" * 50)
