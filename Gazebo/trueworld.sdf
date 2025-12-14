@@ -1,0 +1,231 @@
+<?xml version="1.0" ?>
+<sdf version="1.7">
+  <world name="maze_world">
+
+    <!-- Ground plane -->
+    <link name="ground">
+      <pose>0 0 0 0 0 0</pose>
+      <collision name="ground_col">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>20 20</size>
+          </plane>
+        </geometry>
+      </collision>
+      <visual name="ground_vis">
+        <geometry>
+          <plane>
+            <normal>0 0 1</normal>
+            <size>20 20</size>
+          </plane>
+        </geometry>
+        <material>
+          <ambient>0.3 0.3 0.3 1</ambient>
+          <diffuse>0.4 0.4 0.4 1</diffuse>
+        </material>
+      </visual>
+    </link>
+
+    <!-- ==========================================================
+         MAZE
+         - Outer square: side 2.4 m  (x,y in [-1.2, 1.2])
+         - Wall thickness: 0.02 m
+         - Wall height   : 0.30 m
+         - Internal grid step: 0.60 m
+           handy interior coords: -0.9, -0.3, 0.3, 0.9
+    =========================================================== -->
+    <model name="wood_maze">
+      <static>true</static>
+
+      <!-- ========== OUTER SQUARE ========== -->
+
+      <!-- Bottom (y = -1.2) -->
+      <link name="outer_bottom">
+        <pose>0 -1.2 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Top (y = 1.2) -->
+      <link name="outer_top">
+        <pose>0 1.2 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Left (x = -1.2) -->
+      <link name="outer_left">
+        <pose>-1.2 0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Right (x = 1.2) -->
+      <link name="outer_right">
+        <pose>1.2 0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- ==========================================================
+           TOP-LEFT SHORT HORIZONTAL
+           From left wall into maze, same row as the long top corridor
+           x: -1.2 → -0.3   (length 0.9),   y = 0.6
+      =========================================================== -->
+      <link name="top_left_short_h">
+        <pose>-0.75 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- ==========================================================
+           TOP-CENTER VERTICAL + LONG HORIZONTAL TO THE RIGHT
+           (Γ-shape exactly like your sketch)
+      =========================================================== -->
+
+      <!-- Vertical from roof (y = 1.2) down to the corridor line (y = 0.6) -->
+      <link name="top_center_vertical">
+        <pose>0.0 0.9 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Long horizontal from center to right wall at same y=0.6 -->
+      <link name="top_right_long_h">
+        <!-- x from 0.0 to 1.2 (length 1.2) -->
+        <pose>0.6 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>1.2 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>1.2 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- ==========================================================
+           TOP-RIGHT CROSS (vertical on the long horizontal)
+           Center roughly at (0.9, 0.6)
+      =========================================================== -->
+      <link name="top_right_cross_v">
+        <pose>0.9 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <!-- from y = 0.3 to 0.9 -->
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+      <!-- (its horizontal arm is just part of the existing long corridor) -->
+
+      <!-- ==========================================================
+           FREE CROSS – LEFT MIDDLE
+           Floating cross, not touching walls
+      =========================================================== -->
+
+      <!-- Vertical part -->
+      <link name="mid_left_cross_v">
+        <!-- center at (-0.6, 0.0), span 0.9 (from -0.45 to 0.45) -->
+        <pose>-0.6 0.0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 0.9 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.9 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Horizontal part -->
+      <link name="mid_left_cross_h">
+        <!-- center at (-0.6, 0.0), span 0.9 (from -1.05 to -0.15) -->
+        <pose>-0.6 0.0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- ==========================================================
+           BOTTOM VERTICAL + TWO HORIZONTALS
+           Vertical anchored at the bottom; one horizontal in the middle,
+           one higher – same pattern as your bottom symbol.
+      =========================================================== -->
+
+      <!-- Vertical from bottom (y = -1.2) up to y = 0.0 -->
+      <link name="bottom_vertical">
+        <pose>0.0 -0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 1.2 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 1.2 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Lower horizontal (mid of lower segment) at y = -0.9 -->
+      <link name="bottom_horizontal_low">
+        <!-- short bar, centered at (0,-0.9) -->
+        <pose>0.0 -0.9 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <!-- Upper horizontal at y = -0.3 -->
+      <link name="bottom_horizontal_high">
+        <pose>0.0 -0.3 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+    </model>
+
+  </world>
+</sdf>
