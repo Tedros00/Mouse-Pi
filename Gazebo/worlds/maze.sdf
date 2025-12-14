@@ -1,0 +1,208 @@
+<?xml version="1.0"?>
+<sdf version="1.9">
+  <world name="maze_world">
+
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin filename="gz-sim-physics-system" name="gz::sim::systems::Physics"/>
+    <plugin filename="gz-sim-user-commands-system" name="gz::sim::systems::UserCommands"/>
+    <plugin filename="gz-sim-scene-broadcaster-system" name="gz::sim::systems::SceneBroadcaster"/>
+    <plugin filename="gz-sim-sensors-system" name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <pose>0 0 0 0 0 0</pose>
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>20 20</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>20 20</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.3 0.3 0.3 1</ambient>
+            <diffuse>0.4 0.4 0.4 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================= YOUR MAZE (unchanged) ================= -->
+    <model name="wood_maze">
+      <static>true</static>
+
+      <link name="outer_bottom">
+        <pose>0 -1.2 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="outer_top">
+        <pose>0 1.2 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>2.4 0.02 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="outer_left">
+        <pose>-1.2 0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="outer_right">
+        <pose>1.2 0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 2.4 0.30</size></box></geometry>
+          <material><ambient>0.6 0.4 0.2 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="top_left_short_h">
+        <pose>-0.75 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="top_center_vertical">
+        <pose>0.0 0.9 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="top_right_long_h">
+        <pose>0.6 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>1.2 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>1.2 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="top_right_cross_v">
+        <pose>0.9 0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.6 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="mid_left_cross_v">
+        <pose>-0.6 0.0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 0.9 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 0.9 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="mid_left_cross_h">
+        <pose>-0.6 0.0 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.9 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="bottom_vertical">
+        <pose>0.0 -0.6 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.02 1.2 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.02 1.2 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="bottom_horizontal_low">
+        <pose>0.0 -0.9 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+
+      <link name="bottom_horizontal_high">
+        <pose>0.0 -0.3 0.15 0 0 0</pose>
+        <collision name="col">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+        </collision>
+        <visual name="vis">
+          <geometry><box><size>0.8 0.02 0.30</size></box></geometry>
+          <material><ambient>0.8 0.6 0.4 1</ambient></material>
+        </visual>
+      </link>
+    </model>
+
+    <!-- ================= Robot ================= -->
+    <include>
+      <uri>model://robot</uri>
+      <name>robot</name>
+      <pose>0 0 0 0 0 0</pose>
+    </include>
+
+  </world>
+</sdf>
