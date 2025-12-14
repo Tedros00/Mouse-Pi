@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import sys
+import os
 import time
 import matplotlib.pyplot as plt
-sys.path.insert(0, '/home/mouse/AMR/src')
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from kinematics import pot_readings_to_velocities, FK
 from nano_interface import initialize_serial, get_encoder_counts, send_vel_cmd
@@ -92,5 +95,8 @@ finally:
     ax2.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig('/home/mouse/AMR/examples/encoder_analysis.png', dpi=150, bbox_inches='tight')
-    print("\nPlots saved to /home/mouse/AMR/examples/encoder_analysis.png")
+    out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+    os.makedirs(out_dir, exist_ok=True)
+    output_path = os.path.join(out_dir, 'encoder_analysis.png')
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    print(f"\nPlots saved to {output_path}")

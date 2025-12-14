@@ -5,8 +5,11 @@ Tests increasing PWM values and monitors encoder readings to detect movement.
 """
 
 import sys
+import os
 import time
-sys.path.insert(0, '/home/mouse/AMR/src')
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from nano_interface import initialize_serial, get_encoder_counts, send_vel_cmd
 

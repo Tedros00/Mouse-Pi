@@ -5,7 +5,8 @@ Run this script on the AMR to continuously stream LIDAR data to your PC.
 """
 
 import sys
-sys.path.insert(0, '/home/mouse/AMR/src')
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 import numpy as np
 from lidar import connect_lidar, init_lidar, disconnect_lidar

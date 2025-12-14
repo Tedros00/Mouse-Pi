@@ -1,12 +1,15 @@
 import numpy as np
 import sys
+import os
 import time
 import threading
 import termios
 import tty
 import select
 import matplotlib.pyplot as plt
-sys.path.insert(0, '/home/mouse/AMR/src')
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from kinematics import IK, FK, velocities_to_pwm , pot_readings_to_velocities
 from nano_interface import initialize_serial, get_encoder_counts, send_vel_cmd, prime_encoders
@@ -235,9 +238,12 @@ finally:
             ax2.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            plt.savefig('/home/mouse/AMR/examples/command_feedback_comparison.png', dpi=150, bbox_inches='tight')
+            out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+            os.makedirs(out_dir, exist_ok=True)
+            output_path = os.path.join(out_dir, 'command_feedback_comparison.png')
+            plt.savefig(output_path, dpi=150, bbox_inches='tight')
             plt.close(fig)
-            print("\n✓ Plot saved to /home/mouse/AMR/examples/command_feedback_comparison.png")
+            print(f"\n✓ Plot saved to {output_path}")
     except Exception as e:
         print(f"\nError saving plot: {e}")
 

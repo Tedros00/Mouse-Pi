@@ -5,9 +5,12 @@ Sends controlled movements and logs command vs actual velocities to estimate err
 """
 
 import sys
+import os
 import time
 import numpy as np
-sys.path.insert(0, '/home/mouse/AMR/src')
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from kinematics import IK, FK, velocities_to_pwm, pot_readings_to_velocities, integrate_pose
 from nano_interface import initialize_serial, get_encoder_counts, send_vel_cmd

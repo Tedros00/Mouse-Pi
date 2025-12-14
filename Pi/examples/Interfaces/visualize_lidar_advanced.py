@@ -14,6 +14,11 @@ from matplotlib.patches import Circle, Wedge, FancyArrowPatch
 from collections import deque
 import threading
 import time
+import sys
+import os
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # Configuration
 SERVER_IP = '0.0.0.0'

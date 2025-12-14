@@ -16,13 +16,13 @@ import numpy as np
 from PIL import Image
 
 # Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from path_finding import find_path, visualize_path
 
 
 # Configuration variables
-ogm_path = r"C:\Users\User\Projects\Mouse-Pi\Pi\examples\TestMaze.JPG"
+ogm_path = os.path.join(os.path.dirname(__file__), '..', 'SimulationEnv', 'TestMaze.JPG')
 
 # Downsample factor for coarser path planning (larger = fewer waypoints)
 
@@ -80,8 +80,10 @@ def main():
             print("\nX Y (one per line - original resolution):")
             
             
-            # Save path to file (original resolution)
-            output_file = "path_output.txt"
+            # Save path to file (original resolution) in out/examples folder
+            out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+            os.makedirs(out_dir, exist_ok=True)
+            output_file = os.path.join(out_dir, "path_output.txt")
             with open(output_file, 'w') as f:
                 for x, y in path_original_res:
                     f.write(f"{x} {y}\n")

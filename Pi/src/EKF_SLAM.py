@@ -7,6 +7,7 @@ estimate of the pose distribution with a shared occupancy grid map.
 """
 
 import numpy as np
+import os
 from typing import Tuple, Dict, Callable, List, Optional
 from ProbabilisticMotionModel import sample_motion_velocity_model, velocity_motion_model
 from ProbabilisticSensorModel import beam_range_finder_model
@@ -95,8 +96,10 @@ class EKF_SLAM:
         # Occupancy grid map
         self.map_grid = np.zeros(grid_shape)  # Log-odds representation
         
-        # PGM file for persistent storage
-        self.map_pgm_path = "current_ogm.pgm"
+        # PGM file for persistent storage - default to out/examples folder
+        out_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'out', 'examples')
+        os.makedirs(out_dir, exist_ok=True)
+        self.map_pgm_path = os.path.join(out_dir, "current_ogm.pgm")
         
         # History for analysis
         self.pose_estimates = []

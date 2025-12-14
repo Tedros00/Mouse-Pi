@@ -10,7 +10,7 @@ import os
 from PIL import Image
 
 # Add src to path for path finding
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from path_finding import find_path
 
 
@@ -499,8 +499,10 @@ class MazeSimulation:
 
 if __name__ == "__main__":
     # Example usage
-    ogm_path = r"C:\Users\User\Projects\Mouse-Pi\Pi\examples\TestMaze.JPG"
-    path_file = r"C:\Users\User\Projects\Mouse-Pi\Pi\examples\path_output.txt"
+    ogm_path = os.path.join(os.path.dirname(__file__), 'TestMaze.JPG')
+    out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+    os.makedirs(out_dir, exist_ok=True)
+    path_file = os.path.join(out_dir, 'path_output.txt')
     
     try:
         print("Creating maze simulation...")

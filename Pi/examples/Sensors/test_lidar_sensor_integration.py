@@ -3,7 +3,10 @@ Test script for LIDAR sensor integration with beam range finder model.
 """
 
 import sys
-sys.path.insert(0, '/home/mouse/AMR/src')
+import os
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 import numpy as np
 from LidarSensorIntegration import (

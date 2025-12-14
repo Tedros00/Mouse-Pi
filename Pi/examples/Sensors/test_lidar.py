@@ -3,7 +3,10 @@ Test script to validate RPlidar interface functions.
 """
 
 import sys
-sys.path.insert(0, '/home/mouse/AMR/src')
+import os
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from lidar import connect_lidar, init_lidar, capture_map, disconnect_lidar
 import numpy as np

@@ -1,6 +1,12 @@
 import socket
 import time
 import json
+import sys
+import os
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+
 from nano_interface import initialize_serial, get_encoder_counts
 from kinematics import pot_readings_to_velocities, FK
 

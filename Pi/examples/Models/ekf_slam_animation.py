@@ -2,16 +2,20 @@
 EKF-SLAM Animation - Uses Maze from TestMaze.JPG
 """
 import sys
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from PIL import Image
 
-sys.path.insert(0, r"C:\Users\User\Projects\Mouse-Pi\Pi\src")
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+
 from EKF_SLAM import EKF_SLAM
 
 print("Loading ground truth maze...")
-maze_path = r"C:\Users\User\Projects\Mouse-Pi\Pi\examples\TestMaze.JPG"
+# Use relative path for TestMaze.JPG
+maze_path = os.path.join(os.path.dirname(__file__), '..', 'SimulationEnv', 'TestMaze.JPG')
 maze_image = np.array(Image.open(maze_path).convert('L'))
 maze_binary = (maze_image > 127).astype(np.uint8)
 maze_height_px, maze_width_px = maze_binary.shape
@@ -475,3 +479,29 @@ if len(errors) > 0:
     error_percent = (np.mean(errors) * scale_x / trajectory_dist_cm) * 100 if trajectory_dist_cm > 0 else 0
     print(f"Error as % of distance: {error_percent:.2f}%")
 print("="*70)
+
+# Save final OGM and trajectory to out/examples folder
+print("\nSaving results...")
+out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+os.makedirs(out_dir, exist_ok=True)
+
+# Save the final estimated map (OGM)
+from OGM import log_odds_to_occupancy_probability, save_ogm_to_pgm
+estimated_map = log_odds_to_occupancy_probability(ekf_slam.map_grid)
+estimated_map_image = (estimated_map * 255).astype(np.uint8)
+ogm_output_path = os.path.join(out_dir, 'ekf_slam_final_ogm.pgm')
+save_ogm_to_pgm(ekf_slam.map_grid, ogm_output_path)
+print(f"✓ Final OGM saved to: {ogm_output_path}")
+
+# Save the robot's actual trajectory (estimated poses, NOT the planned path)
+trajectory_output_path = os.path.join(out_dir, 'ekf_slam_robot_trajectory.txt')
+with open(trajectory_output_path, 'w') as f:
+    f.write("Timestep X Y theta\n")
+    for timestep, (x, y, theta) in enumerate(est_trajectory_history):
+        f.write(f"{timestep} {x:.4f} {y:.4f} {theta:.4f}\n")
+print(f"✓ Robot trajectory saved to: {trajectory_output_path}")
+print(f"  Total timesteps: {len(est_trajectory_history)}")
+if len(est_trajectory_history) > 0:
+    print(f"  Start position: ({est_trajectory_history[0][0]:.2f}, {est_trajectory_history[0][1]:.2f})")
+    print(f"  End position: ({est_trajectory_history[-1][0]:.2f}, {est_trajectory_history[-1][1]:.2f})")
+

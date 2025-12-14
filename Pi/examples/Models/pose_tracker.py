@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import sys
+import os
 import time
-sys.path.insert(0, '/home/mouse/AMR/src')
+
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
@@ -106,7 +109,9 @@ finally:
                                    interval=50, blit=True, repeat=True)
     
     # Save animation as GIF using Pillow
-    output_file = '/home/mouse/AMR/examples/pose_animation.gif'
+    out_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'out', 'examples')
+    os.makedirs(out_dir, exist_ok=True)
+    output_file = os.path.join(out_dir, 'pose_animation.gif')
     print(f"Saving animation to {output_file}...")
     anim.save(output_file, writer='pillow', fps=20)
     print(f"Animation saved successfully!")
