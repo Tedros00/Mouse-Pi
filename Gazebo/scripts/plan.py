@@ -34,6 +34,9 @@ GOAL_TOLERANCE = 0.06
 STOP_REPEAT = 12
 STOP_DT = 0.04
 
+WORLD_NAME = "maze_world"
+MODEL_NAME = "robot"
+
 # ============================================================
 # Import your existing planner WITHOUT modifying Pi/src
 # ============================================================
@@ -45,7 +48,61 @@ from path_finding import find_path  # DO NOT MODIFY Pi/src
 
 
 # ============================================================
-# SDF parsing + OGM build
+# WORLD pose reader (ground truth) - fixes mismatch with video
+# ============================================================
+def gz_read_world_pose_once(timeout_s=0.5):
+    topic = f"/world/{WORLD_NAME}/pose/info"
+    try:
+        out = subprocess.check_output(
+            ["gz", "topic", "-e", "-t", topic, "-m", "gz.msgs.Pose_V", "-n", "1"],
+            stderr=subprocess.DEVNULL,
+            timeout=timeout_s
+        ).decode("utf-8", errors="ignore")
+    except Exception:
+        return None
+
+    key = f'name: "{MODEL_NAME}"'
+    i = out.find(key)
+    if i < 0:
+        return None
+    sub = out[i:i+1400]
+
+    def get_float_after(s, k):
+        j = s.find(k)
+        if j < 0:
+            return None
+        s2 = s[j+len(k):]
+        tok = ""
+        for ch in s2:
+            if ch in "0123456789+-.eE":
+                tok += ch
+            elif tok:
+                break
+        try:
+            return float(tok)
+        except Exception:
+            return None
+
+    # position x,y
+    x = get_float_after(sub, "position {\n    x:")
+    if x is None:
+        x = get_float_after(sub, "x:")
+    y = get_float_after(sub, "y:")
+
+    # orientation quaternion: use qz, qw for planar yaw
+    qz = get_float_after(sub, "orientation {\n    x:")  # anchor only
+    qz = get_float_after(sub, "z:")
+    qw = get_float_after(sub, "w:")
+
+    if x is None or y is None or qz is None or qw is None:
+        return None
+
+    yaw = 2.0 * math.atan2(qz, qw)
+    return x, y, yaw
+
+
+# ============================================================
+# SDF parsing + OGM build (NOW includes wood_maze model pose)
 # ============================================================
 def parse_pose(text):
     vals = [float(x) for x in text.strip().split()]
@@ -64,10 +121,21 @@ def build_ogm_from_maze_sdf(world_sdf_path, resolution=0.02, margin=0.15):
     for model in root.iter("model"):
         if model.attrib.get("name") != "wood_maze":
             continue
+
+        # MODEL pose (apply to every link pose)
+        model_pose_el = model.find("pose")
+        mp = parse_pose(model_pose_el.text) if model_pose_el is not None else [0,0,0,0,0,0]
+        mx, my, _, _, _, myaw = mp
+
         for link in model.iter("link"):
             pose_el = link.find("pose")
-            pose = parse_pose(pose_el.text) if pose_el is not None else [0, 0, 0, 0, 0, 0]
-            x, y, _, _, _, yaw = pose
+            lp = parse_pose(pose_el.text) if pose_el is not None else [0,0,0,0,0,0]
+            lx, ly, _, _, _, lyaw = lp
+
+            # Compose (approx): world = model + link (good if walls are axis-aligned links)
+            x = mx + lx
+            y = my + ly
+            yaw = myaw + lyaw  # kept for completeness (we still raster axis-aligned below)
 
             col = link.find("collision")
             if col is None:
@@ -104,11 +172,11 @@ def build_ogm_from_maze_sdf(world_sdf_path, resolution=0.02, margin=0.15):
     occ = np.ones((height, width), dtype=np.uint8)  # 1 free, 0 obstacle
 
     def world_to_pixel_local(wx, wy):
-        # This is a raw mapping, y-up; we will convert to y-down consistently later
         px = int((wx - min_x) / resolution)
         py_up = int((wy - min_y) / resolution)
         return px, py_up
 
+    # NOTE: we raster axis-aligned AABBs. If any wall link is rotated, we can add rotated-box rastering.
     for (x, y, yaw, sx, sy) in boxes:
         x0, y0 = x - sx / 2, y - sy / 2
         x1, y1 = x + sx / 2, y + sy / 2
@@ -131,13 +199,9 @@ def build_ogm_from_maze_sdf(world_sdf_path, resolution=0.02, margin=0.15):
 
 
 # ============================================================
-# CRITICAL: consistent world <-> grid mapping
-# Planner grid uses image coords: x right, y DOWN.
+# world <-> grid mapping (planner grid: y DOWN)
 # ============================================================
 def world_to_grid(wx, wy, meta):
-    """
-    Convert world (x,y) to grid (gx,gy) where gy increases DOWN.
-    """
     gx = int((wx - meta["min_x"]) / meta["resolution"])
     gy_up = int((wy - meta["min_y"]) / meta["resolution"])
     gy = (meta["height"] - 1) - gy_up
@@ -145,9 +209,6 @@ def world_to_grid(wx, wy, meta):
 
 
 def grid_to_world(gx, gy, meta):
-    """
-    Convert grid (gx,gy) with y DOWN to world (x,y) with y UP.
-    """
     wx = meta["min_x"] + (gx + 0.5) * meta["resolution"]
     gy_up = (meta["height"] - 1) - gy
     wy = meta["min_y"] + (gy_up + 0.5) * meta["resolution"]
@@ -245,7 +306,7 @@ def snap_goal_to_reachable(goal_px, reachable):
 
 
 # ============================================================
-# Gazebo IO using gz CLI (no ROS)
+# Gazebo cmd_vel publisher
 # ============================================================
 def gz_pub_cmd_vel(v, w):
     msg = f"linear: {{x: {v:.4f}, y: 0, z: 0}} angular: {{x: 0, y: 0, z: {w:.4f}}}"
@@ -256,61 +317,13 @@ def gz_pub_cmd_vel(v, w):
     )
 
 
-def gz_read_odom_once(timeout_s=0.5):
-    try:
-        out = subprocess.check_output(
-            ["gz", "topic", "-e", "-t", "/model/robot/odom", "-m", "gz.msgs.Odometry", "-n", "1"],
-            stderr=subprocess.DEVNULL,
-            timeout=timeout_s
-        ).decode("utf-8", errors="ignore")
-    except Exception:
-        return None
-
-    def first_after(key, start=0):
-        idx = out.find(key, start)
-        if idx < 0:
-            return None, -1
-        s = out[idx + len(key):]
-        tok = ""
-        for ch in s:
-            if ch in "0123456789+-.eE":
-                tok += ch
-            elif tok:
-                break
-        try:
-            return float(tok), idx + len(key)
-        except Exception:
-            return None, -1
-
-    pidx = out.find("pose {")
-    if pidx < 0:
-        return None
-
-    x, ix = first_after("position {\n    x:", pidx)
-    if x is None:
-        x, ix = first_after("x:", pidx)
-    y, iy = first_after("y:", ix if ix > 0 else pidx)
-
-    oz, iz = first_after("orientation {\n    z:", iy if iy > 0 else pidx)
-    if oz is None:
-        oz, iz = first_after("z:", iy if iy > 0 else pidx)
-    ow, _ = first_after("w:", iz if iz > 0 else (iy if iy > 0 else pidx))
-
-    if x is None or y is None or oz is None or ow is None:
-        return None
-
-    yaw = 2.0 * math.atan2(oz, ow)
-    return x, y, yaw
-
-
 # ============================================================
-# Plotting: show maze correctly + planned path overlay + live trajectory
+# Plotting
 # ============================================================
 def init_live_plot(ogm, meta, planned_world_path=None):
     plt.ion()
     fig, ax = plt.subplots()
 
-    # Flip image vertically so display matches world y-up
     ogm_plot = np.flipud(ogm)
 
     extent = [
@@ -333,16 +346,16 @@ def init_live_plot(ogm, meta, planned_world_path=None):
         pys = [p[1] for p in planned_world_path]
         ax.plot(pxs, pys, linestyle="--", linewidth=2, label="Planned path")
 
-    ax.set_title("Robot Trajectory (live)")
+    ax.set_title("Robot Trajectory (live) - WORLD frame")
     ax.set_xlabel("x [m]")
     ax.set_ylabel("y [m]")
     ax.set_aspect("equal", adjustable="box")
-    ax.legend(loc="upper right")
 
     xs, ys = [], []
     (line,) = ax.plot([], [], linewidth=2, label="Actual trajectory")
-    (dot,) = ax.plot([], [], marker="o", markersize=6)
+    (dot,) = ax.plot([], [], marker="o", markersize=6, label="Robot")
 
+    ax.legend(loc="upper right")
     fig.canvas.draw()
     fig.canvas.flush_events()
     return fig, ax, dot, line, xs, ys
@@ -394,11 +407,11 @@ def follow_waypoints(waypoints, ogm, meta, planned_world_path=None):
     idx = 0
 
     while True:
-        od = gz_read_odom_once()
-        if od is None:
+        pose = gz_read_world_pose_once()
+        if pose is None:
             time.sleep(DT)
             continue
-        x, y, th = od
+        x, y, th = pose
 
         update_live_plot(fig, dot, line, xs, ys, x, y, every_n=2)
 
@@ -444,26 +457,26 @@ def main():
     print(f"[Adapter] Map dimensions: {meta['width']} x {meta['height']}")
     print(f"[Adapter] Inflation: ROBOT_RADIUS_M={ROBOT_RADIUS_M:.3f}m -> R={R} pixels")
 
+    # Get start in WORLD frame (matches Gazebo video)
     if USE_MANUAL_START:
         sx_w, sy_w = MANUAL_START_WORLD
         print(f"[Adapter] Using MANUAL start (world): {sx_w:.3f}, {sy_w:.3f}")
+        # yaw not needed for planning
     else:
-        print("[Adapter] Waiting for /model/robot/odom ...")
+        print(f"[Adapter] Waiting for /world/{WORLD_NAME}/pose/info ...")
         while True:
-            od = gz_read_odom_once()
-            if od is not None:
+            pose = gz_read_world_pose_once()
+            if pose is not None:
                 break
-        sx_w, sy_w, _ = od
-        print(f"[Adapter] ODOM start (world): {sx_w:.3f}, {sy_w:.3f}")
+        sx_w, sy_w, _ = pose
+        print(f"[Adapter] WORLD start (world): {sx_w:.3f}, {sy_w:.3f}")
 
     gx_w, gy_w = GOAL_WORLD
     print(f"[Adapter] Goal (world): {gx_w:.3f}, {gy_w:.3f}")
 
-    # Convert world -> grid (y-down) for planner
     sx, sy = world_to_grid(sx_w, sy_w, meta)
     gx, gy = world_to_grid(gx_w, gy_w, meta)
 
-    # Snap start/goal to inflated-free
     sx2, sy2 = snap_to_nearest_free(sx, sy, inflated_free)
     if (sx2, sy2) != (sx, sy):
         print(f"[Adapter] Start was blocked at ({sx},{sy}); snapped to ({sx2},{sy2})")
@@ -476,7 +489,6 @@ def main():
     if (gx3, gy3) != (gx, gy):
         print(f"[Adapter] Goal adjusted to reachable: ({gx},{gy}) -> ({gx3},{gy3})")
 
-    # Plan (unchanged Pi/src)
     path_px = find_path(
         ogm_image=ogm,
         start_x=sx2,
@@ -491,15 +503,13 @@ def main():
     if path_px is None or len(path_px) < 2:
         raise RuntimeError("No path found. Ensure robot is inside maze corridors and/or reduce ROBOT_RADIUS_M.")
 
-    # Convert planned pixel path -> world path (for overlay)
     planned_world_path = [grid_to_world(px, py, meta) for (px, py) in path_px]
 
-    # Downsample to waypoints in WORLD coords
     waypoints = [grid_to_world(px, py, meta) for (px, py) in path_px[::WAYPOINT_STEP]]
     waypoints.append(grid_to_world(path_px[-1][0], path_px[-1][1], meta))
 
     print(f"[Adapter] Path pixels: {len(path_px)} | waypoints: {len(waypoints)}")
-    print("[Adapter] Driving... (will hard-stop at goal)")
+    print("[Adapter] Driving... (WORLD pose, no mismatch)")
     follow_waypoints(waypoints, ogm, meta, planned_world_path=planned_world_path)
 
 
