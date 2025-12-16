@@ -14,14 +14,16 @@ import threading
 # Command-line arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('--headless', action='store_true', help='Run without displaying plots')
+parser.add_argument('--save-gif', type=str, default=None, help='Path to save animation GIF (GIF will be written even in headless mode)')
 args = parser.parse_args()
 
-# Only import matplotlib if not headless
-if not args.headless:
-    import matplotlib
+import matplotlib
+if args.headless:
+    matplotlib.use('Agg')
+else:
     matplotlib.use('TkAgg')
-    import matplotlib.pyplot as plt
-    from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
 
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -487,39 +489,48 @@ def frame_generator():
             if dist_to_goal < 0.05:
                 break
 
-if not args.headless:
-    try:
-        anim = FuncAnimation(fig, update, frames=frame_generator(),
-                             interval=50, blit=True, repeat=False, cache_frame_data=False)
-        
+try:
+    anim = FuncAnimation(fig, update, frames=frame_generator(),
+                         interval=50, blit=True, repeat=False, cache_frame_data=False)
+
+    # If requested, save the animation to GIF (works in headless and non-headless)
+    if args.save_gif:
+        try:
+            writer = PillowWriter(fps=20)
+            anim.save(args.save_gif, writer=writer)
+            print(f"Saved animation to {args.save_gif}")
+        except Exception as e:
+            print(f"Error saving GIF: {e}")
+
+    if not args.headless:
         print("Starting animation... (close window when done)")
         plt.show()
-    except Exception as e:
-        print(f"Error in animation: {e}")
-else:
-    print("Running in headless mode (no visualization)")
-    print("="*70)
-    start_total = time.time()
-    for frame_num in frame_generator():
-        frame_start = time.time()
-        update(frame_num)
-        frame_time = (time.time() - frame_start) * 1000
-        
+    else:
+        # Headless: run through frames to collect stats/prints (animation already saved if requested)
+        print("Running in headless mode (no visualization)")
+        print("="*70)
+        start_total = time.time()
+        for frame_num in frame_generator():
+            frame_start = time.time()
+            update(frame_num)
+            frame_time = (time.time() - frame_start) * 1000
+            if len(errors) > 0:
+                print(f"Frame {frame_num:4d} | Time: {frame_time:6.2f} ms | Error: {errors[-1]:.4f} m | Uncertainty: {uncertainties[-1]:.4f} m")
+
+        total_time = (time.time() - start_total) * 1000
+        print("\n" + "="*70)
+        print("SIMULATION COMPLETE")
+        print("="*70)
+        print(f"Total time: {total_time:.2f} ms ({total_time/1000:.2f} s)")
+        print(f"Frames completed: {len(errors)}")
         if len(errors) > 0:
-            print(f"Frame {frame_num:4d} | Time: {frame_time:6.2f} ms | Error: {errors[-1]:.4f} m | Uncertainty: {uncertainties[-1]:.4f} m")
-    
-    total_time = (time.time() - start_total) * 1000
-    print("\n" + "="*70)
-    print("SIMULATION COMPLETE")
-    print("="*70)
-    print(f"Total time: {total_time:.2f} ms ({total_time/1000:.2f} s)")
-    print(f"Frames completed: {len(errors)}")
-    if len(errors) > 0:
-        avg_frame_time = total_time / len(errors)
-        print(f"Average frame time: {avg_frame_time:.2f} ms")
-        print(f"Final uncertainty: {uncertainties[-1]:.4f} m")
-        print(f"Final error: {errors[-1]:.4f} m")
-    print("="*70)
+            avg_frame_time = total_time / len(errors)
+            print(f"Average frame time: {avg_frame_time:.2f} ms")
+            print(f"Final uncertainty: {uncertainties[-1]:.4f} m")
+            print(f"Final error: {errors[-1]:.4f} m")
+        print("="*70)
+except Exception as e:
+    print(f"Error in animation: {e}")
 
 # Final statistics
 print("\n" + "="*70)
